@@ -6,6 +6,7 @@
 node_modules/
 .node_modules.lock
 .tanstack/
+.wrangler/
 .vercel/
 .output/
 dist/

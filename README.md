@@ -16,7 +16,7 @@ Nasab is a local-first visual studio for building and preserving family trees. A
 
 ## Stack
 
-React 19, TanStack Start/Router/Query, TypeScript, Tailwind CSS v4, React Flow, Better Auth, PostgreSQL/Neon, Nitro, and Vercel.
+React 19, TanStack Start/Router/Query, TypeScript, Tailwind CSS v4, React Flow, Better Auth, PostgreSQL/Neon, Nitro, and Cloudflare Workers.
 
 ## Local development
 

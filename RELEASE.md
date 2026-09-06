@@ -36,7 +36,7 @@ npm version patch
 git push origin main --follow-tags
 ```
 
-The release workflow validates the tagged commit and publishes generated release notes on GitHub. A tag pushed from `main` also receives its own immutable Vercel deployment through the Git integration.
+The release workflow validates the tagged commit and publishes generated release notes on GitHub. Publishing a release triggers the protected Cloudflare production workflow after its required secrets are configured.
 
 ## Production verification
 
@@ -49,4 +49,4 @@ The release workflow validates the tagged commit and publishes generated release
 
 ## Rollback
 
-Promote the previous known-good Vercel deployment. Database rollback is safe only when migrations remain backward compatible; use additive migrations and never edit an applied migration.
+Roll back to the previous known-good Cloudflare Worker version. Database rollback is safe only when migrations remain backward compatible; use additive migrations and never edit an applied migration.

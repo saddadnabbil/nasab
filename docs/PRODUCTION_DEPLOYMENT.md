@@ -1,85 +1,99 @@
-# Production deployment
+# Production deployment — Cloudflare Workers
 
-Canonical production hostname: `https://nasab.saddadnabbil.my.id`.
+Canonical production URL: `https://nasab.saddadnabbil.my.id`
 
-## 1. GitHub and Vercel
+Nasab deploys as a full-stack TanStack Start Worker. Nitro builds the Worker and static assets; Wrangler publishes them and attaches the custom domain. PostgreSQL remains a managed external database.
 
-1. Import `saddadnabbil/nasab` into Vercel and keep `main` as the production branch.
-2. Use Node.js 22 and the repository build command `npm run build`.
-3. Do not set a custom output directory. Nitro emits the Vercel Build Output API bundle under `.vercel/output`.
-4. Provision a production PostgreSQL/Neon database and set `DATABASE_URL` for Production and Preview.
-5. Add all server variables through Vercel Project Settings. Never prefix secrets with `VITE_`.
+## 1. One-time Cloudflare setup
 
-Required production variables:
+1. In Cloudflare, create an API token with **Workers Scripts: Edit** and **Workers Routes: Edit** for the account/zone that owns `saddadnabbil.my.id`.
+2. In GitHub repository settings, create the `production` environment.
+3. Add these GitHub environment secrets:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `DATABASE_URL`
+   - `BETTER_AUTH_SECRET`
+   - `GROK_AUTH_CLIENT_ID`
+   - `GROK_AUTH_CLIENT_SECRET`
+   - `RESEND_API_KEY`
+4. Generate a new, unique `BETTER_AUTH_SECRET` of at least 32 random bytes. Never reuse local or preview credentials.
+5. Run **Deploy Cloudflare** manually once. Future published GitHub releases deploy automatically.
 
-| Variable                  | Production value/purpose                                                  |
-| ------------------------- | ------------------------------------------------------------------------- |
-| `VITE_AUTH_ENABLED`       | `true`                                                                    |
-| `BETTER_AUTH_URL`         | `https://nasab.saddadnabbil.my.id`                                        |
-| `BETTER_AUTH_SECRET`      | A unique random secret of at least 32 bytes                               |
-| `DATABASE_URL`            | Production PostgreSQL connection string                                   |
-| `GROK_AUTH_ISSUER`        | The deployed broker issuer, currently `https://auth.grok.me`              |
-| `GROK_AUTH_CLIENT_ID`     | Per-app client registered for Nasab in the broker                         |
-| `GROK_AUTH_CLIENT_SECRET` | Matching server-only broker client secret                                 |
-| `RESEND_API_KEY`          | Server-only key for account email when password reset delivery is enabled |
+`wrangler.jsonc` owns the Worker name, compatibility flags, observability, and custom domain. Because this is a Cloudflare Custom Domain, Wrangler creates the required DNS record and TLS certificate; do not create a competing CNAME first.
 
-Do not reuse preview credentials or secrets from another application. Preview deployments should use a separate database and callback registration where supported.
+## 2. Runtime configuration
 
-## 2. Domain
+The deployment workflow writes these non-secret variables to the Worker:
 
-Add `nasab.saddadnabbil.my.id` to the Vercel project before changing DNS. Inspect the domain in Vercel and use the exact record it requests. For a subdomain, Vercel normally provides a CNAME target such as `cname.vercel-dns-0.com`.
+| Variable | Production value |
+| --- | --- |
+| `VITE_AUTH_ENABLED` | `true` |
+| `BETTER_AUTH_URL` | `https://nasab.saddadnabbil.my.id` |
+| `GROK_AUTH_ISSUER` | `https://auth.grok.me` |
 
-At the current Cloudflare DNS zone:
+The remaining values are uploaded as encrypted Worker secrets by the Cloudflare action. `DATABASE_URL` must use TLS. For higher database traffic, put the same database behind Cloudflare Hyperdrive and update the connection string after testing.
 
-- Type: `CNAME`
-- Name: `nasab`
-- Target: the value shown by Vercel's domain inspector
-- Proxy: DNS only until Vercel verifies ownership and issues TLS; proxying can be enabled later only if HTTPS and auth redirects are retested
+## 3. Google OAuth production setup
 
-After DNS resolves, make the custom hostname the Vercel project's primary production domain. Avoid using the generated `*.vercel.app` hostname for OAuth tests because cookies and callback origins must match the canonical host.
+Nasab talks to Google through the Grok OAuth broker, so two callback layers must not be confused.
 
-## 3. Google OAuth through the broker
+### Nasab callback registered at the broker
 
-Nasab does not send users directly to Google. Its Better Auth instance is an OAuth client of the shared broker, and the broker owns the upstream Google client. This produces two distinct callback registrations:
+Register this exact redirect URI on Nasab's production broker client:
 
-1. Register this exact Nasab callback in the broker client:
+```text
+https://nasab.saddadnabbil.my.id/api/auth/oauth2/callback/grok-google
+```
 
-   `https://nasab.saddadnabbil.my.id/api/auth/callback/grok-google`
+Use a dedicated client ID/secret for Nasab production. Do not reuse the Timesmith, xAI, local-preview, or another app's credentials.
 
-2. In Google Cloud, register the broker's Google callback—not the Nasab callback. Use the exact redirect URI emitted by the broker's Google authorization request. A redirect URI must match exactly, including scheme, host, path, and trailing slash behavior.
+### Google Cloud OAuth client
 
-Configure Google Auth Platform branding with:
+In Google Cloud Console:
 
-- App name: `Nasab`
-- App homepage: `https://nasab.saddadnabbil.my.id`
-- Privacy policy: `https://nasab.saddadnabbil.my.id/privacy`
-- Terms: `https://nasab.saddadnabbil.my.id/terms`
-- Authorized domain: `saddadnabbil.my.id`
-- Scopes: `openid`, `email`, and `profile` only
+1. Set the app name to **Nasab** and upload Nasab's logo.
+2. Set the homepage to `https://nasab.saddadnabbil.my.id`.
+3. Set the privacy policy to `https://nasab.saddadnabbil.my.id/privacy`.
+4. Set the terms page to `https://nasab.saddadnabbil.my.id/terms`.
+5. Add `saddadnabbil.my.id` as an authorized domain.
+6. Add the broker's exact upstream Google redirect URI to the Google OAuth client. Obtain this value from the broker configuration; it is **not** the Nasab callback above.
+7. While the consent screen is in Testing, add the reviewer accounts as test users. Publish/verify the app before public portfolio traffic if Google requires it.
 
-The consent screen's app name and logo must represent Nasab. If it still displays another product name, the wrong Google Cloud OAuth client is configured at the broker. Create or select a Nasab-branded production OAuth client and update the broker's Google credentials; do not patch the frontend label.
+Google redirect URIs are exact matches: scheme, hostname, path, port, and trailing slash all matter.
 
-## 4. OAuth smoke test
+## 4. Release and deploy
 
-Use a private browser window on the canonical domain:
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run build
+git tag -a v0.1.1 -m "Nasab v0.1.1"
+git push origin v0.1.1
+```
 
-1. Open `/login` and choose Google once.
-2. Confirm the first click immediately navigates to the broker/Google flow.
-3. Confirm the consent screen says Nasab and requests only basic identity scopes.
-4. Complete login and confirm the browser returns to `/app` on the canonical domain.
-5. Reload; the session must remain active without a light-theme flash.
-6. Sign out; protected cloud data must no longer be returned.
+The tag runs the full release gate and creates a GitHub Release. Publishing that release triggers `.github/workflows/deploy-cloudflare.yml`. The deployment first applies migrations, then uploads Worker configuration and secrets, and finally deploys the immutable tagged source.
 
-Typical failures:
+## 5. Production acceptance
 
-| Error                                         | Check                                                                                                       |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `Invalid origin`                              | `BETTER_AUTH_URL` must exactly equal the canonical HTTPS origin.                                            |
-| `redirect_uri_mismatch` at the broker         | Register Nasab's `/api/auth/callback/grok-google` callback in the broker client.                            |
-| `redirect_uri_mismatch` at Google             | Register the broker's exact upstream Google callback in Google Cloud.                                       |
-| Wrong app name/logo                           | Replace the broker's upstream Google OAuth client with the Nasab-branded client.                            |
-| Works on `vercel.app`, fails on custom domain | Stop mixing origins; make the custom hostname canonical and update `BETTER_AUTH_URL` plus broker callbacks. |
+- `/`, `/login`, `/app`, `/privacy`, and `/terms` return successfully.
+- Light/dark theme does not flash during first paint.
+- Email sign-up, sign-in, forgot-password, reset link, and sign-out work.
+- Google consent says **Nasab**, returns to the canonical domain, and creates the expected user session on the first click.
+- Local trees still open without login; authenticated sync is scoped to the current user.
+- Desktop and mobile have no horizontal overflow or uncaught console errors.
+- Resend uses a verified sender on the production domain.
 
-## 5. Release and operations
+## 6. Rollback
 
-Every push and pull request runs CI and secret scanning. Tags matching `v*` run the full release gate and create a GitHub Release. Production deploys from `main`; retain the prior Vercel deployment for immediate rollback.
+Use Workers & Pages → Nasab → Deployments to roll traffic back to the previous Worker version. Only roll application code backward when database migrations are backward compatible; migrations should remain additive until the old version is retired.
+
+## Common failures
+
+| Symptom | Check |
+| --- | --- |
+| `redirect_uri_mismatch` | Compare the broker's Google redirect URI character-for-character with Google Cloud. |
+| Consent screen names another app | Create/select the OAuth consent brand owned by the Nasab Google Cloud project. |
+| Callback returns `Invalid origin` | Confirm `BETTER_AUTH_URL`, broker callback, and browser origin all use the canonical HTTPS domain. |
+| Worker deploy rejects secrets | Add every required value to the GitHub `production` environment and rerun the workflow. |
+| Database connection fails | Require TLS and validate the provider supports connections from Cloudflare Workers; use Hyperdrive when appropriate. |
