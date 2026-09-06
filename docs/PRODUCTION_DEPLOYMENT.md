@@ -13,8 +13,8 @@ Nasab deploys as a full-stack TanStack Start Worker. Nitro builds the Worker and
    - `CLOUDFLARE_ACCOUNT_ID`
    - `DATABASE_URL`
    - `BETTER_AUTH_SECRET`
-   - `GROK_AUTH_CLIENT_ID`
-   - `GROK_AUTH_CLIENT_SECRET`
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
    - `RESEND_API_KEY`
 4. Generate a new, unique `BETTER_AUTH_SECRET` of at least 32 random bytes. Never reuse local or preview credentials.
 5. Run **Deploy Cloudflare** manually once. Future published GitHub releases deploy automatically.
@@ -29,23 +29,18 @@ The deployment workflow writes these non-secret variables to the Worker:
 | --- | --- |
 | `VITE_AUTH_ENABLED` | `true` |
 | `BETTER_AUTH_URL` | `https://nasab.saddadnabbil.my.id` |
-| `GROK_AUTH_ISSUER` | `https://auth.grok.me` |
 
 The remaining values are uploaded as encrypted Worker secrets by the Cloudflare action. `DATABASE_URL` must use TLS. For higher database traffic, put the same database behind Cloudflare Hyperdrive and update the connection string after testing.
 
 ## 3. Google OAuth production setup
 
-Nasab talks to Google through the Grok OAuth broker, so two callback layers must not be confused.
-
-### Nasab callback registered at the broker
-
-Register this exact redirect URI on Nasab's production broker client:
+Nasab connects directly to Google through Better Auth. Register this exact redirect URI on the Google Web application client:
 
 ```text
-https://nasab.saddadnabbil.my.id/api/auth/oauth2/callback/grok-google
+https://nasab.saddadnabbil.my.id/api/auth/oauth2/callback/google
 ```
 
-Use a dedicated client ID/secret for Nasab production. Do not reuse the Timesmith, xAI, local-preview, or another app's credentials.
+Use the dedicated `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` for Nasab production. Do not reuse Timesmith or another app's credentials.
 
 ### Google Cloud OAuth client
 
@@ -56,7 +51,7 @@ In Google Cloud Console:
 3. Set the privacy policy to `https://nasab.saddadnabbil.my.id/privacy`.
 4. Set the terms page to `https://nasab.saddadnabbil.my.id/terms`.
 5. Add `saddadnabbil.my.id` as an authorized domain.
-6. Add the broker's exact upstream Google redirect URI to the Google OAuth client. Obtain this value from the broker configuration; it is **not** the Nasab callback above.
+6. Add the exact Nasab callback above under **Authorized redirect URIs**.
 7. While the consent screen is in Testing, add the reviewer accounts as test users. Publish/verify the app before public portfolio traffic if Google requires it.
 
 Google redirect URIs are exact matches: scheme, hostname, path, port, and trailing slash all matter.
@@ -92,8 +87,8 @@ Use Workers & Pages → Nasab → Deployments to roll traffic back to the previo
 
 | Symptom | Check |
 | --- | --- |
-| `redirect_uri_mismatch` | Compare the broker's Google redirect URI character-for-character with Google Cloud. |
+| `redirect_uri_mismatch` | Compare Nasab's `/api/auth/oauth2/callback/google` URI character-for-character with Google Cloud. |
 | Consent screen names another app | Create/select the OAuth consent brand owned by the Nasab Google Cloud project. |
-| Callback returns `Invalid origin` | Confirm `BETTER_AUTH_URL`, broker callback, and browser origin all use the canonical HTTPS domain. |
+| Callback returns `Invalid origin` | Confirm `BETTER_AUTH_URL`, Google callback, and browser origin all use the canonical HTTPS domain. |
 | Worker deploy rejects secrets | Add every required value to the GitHub `production` environment and rerun the workflow. |
 | Database connection fails | Require TLS and validate the provider supports connections from Cloudflare Workers; use Hyperdrive when appropriate. |

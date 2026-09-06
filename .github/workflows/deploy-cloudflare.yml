@@ -34,9 +34,8 @@ jobs:
           BETTER_AUTH_URL: "https://nasab.saddadnabbil.my.id"
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          GROK_AUTH_ISSUER: "https://auth.grok.me"
-          GROK_AUTH_CLIENT_ID: ${{ secrets.GROK_AUTH_CLIENT_ID }}
-          GROK_AUTH_CLIENT_SECRET: ${{ secrets.GROK_AUTH_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v4
@@ -47,19 +46,17 @@ jobs:
           secrets: |
             BETTER_AUTH_SECRET
             DATABASE_URL
-            GROK_AUTH_CLIENT_ID
-            GROK_AUTH_CLIENT_SECRET
+            GOOGLE_CLIENT_ID
+            GOOGLE_CLIENT_SECRET
             RESEND_API_KEY
           vars: |
             VITE_AUTH_ENABLED
             BETTER_AUTH_URL
-            GROK_AUTH_ISSUER
         env:
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          GROK_AUTH_CLIENT_ID: ${{ secrets.GROK_AUTH_CLIENT_ID }}
-          GROK_AUTH_CLIENT_SECRET: ${{ secrets.GROK_AUTH_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           VITE_AUTH_ENABLED: "true"
           BETTER_AUTH_URL: "https://nasab.saddadnabbil.my.id"
-          GROK_AUTH_ISSUER: "https://auth.grok.me"

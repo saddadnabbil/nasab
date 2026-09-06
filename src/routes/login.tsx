@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
-const LOGIN_PROVIDERS = GROK_PROVIDERS.filter((provider) => provider.providerId === "grok-google");
+const LOGIN_PROVIDERS = GROK_PROVIDERS.filter((provider) => provider.providerId === "google");
 
 function Login() {
   const { t } = useLocale();

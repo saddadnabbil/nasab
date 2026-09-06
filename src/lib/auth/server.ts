@@ -80,10 +80,13 @@ const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
 const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
 const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
+const googleClientId = env("GOOGLE_CLIENT_ID");
+const googleClientSecret = env("GOOGLE_CLIENT_SECRET");
+const googleConfigured = Boolean(googleClientId && googleClientSecret);
 
 /** True when federated sign-in is active (real auth is enforced). */
 export const authConfigured =
-  !authDisabled && Boolean(grokClientId && grokClientSecret);
+  !authDisabled && (googleConfigured || Boolean(grokClientId && grokClientSecret));
 
 // This app's own Better Auth origin. When deployed the deployer injects the
 // public URL. In the sandbox live preview there's no fixed URL (each preview gets
@@ -152,23 +155,30 @@ export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 // breaking brackets (models often trip on the conditional plugin spread).
 const grokOAuthPlugin = authConfigured
   ? genericOAuth({
-      config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
-        providerId,
-        clientId: grokClientId as string,
-        clientSecret: grokClientSecret as string,
-        // Prefer static endpoints over `discoveryUrl` so initiating (and
-        // completing) OAuth does not wait on a broker discovery fetch.
-        authorizationUrl: grokAuthorizationUrl,
-        tokenUrl: grokTokenUrl,
-        userInfoUrl: grokUserInfoUrl,
-        scopes: ["openid", "profile", "email"],
-        // `prompt: "login"` forces the broker to re-authenticate against the
-        // upstream on every sign-in instead of silently reusing an existing
-        // broker session. Combined with the broker sending Google
-        // `prompt=select_account`, the user always gets the account chooser
-        // and can pick (or switch) which account to sign in with.
-        authorizationUrlParams: { idp, prompt: "login" },
-      })),
+      config: GROK_PROVIDERS.map(({ providerId, idp }) =>
+        providerId === "google" && googleConfigured
+          ? {
+              providerId,
+              clientId: googleClientId as string,
+              clientSecret: googleClientSecret as string,
+              authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+              tokenUrl: "https://oauth2.googleapis.com/token",
+              userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo",
+              scopes: ["openid", "profile", "email"],
+              authorizationUrlParams: { prompt: "select_account" } as Record<string, string>,
+            }
+          : {
+              providerId,
+              clientId: grokClientId as string,
+              clientSecret: grokClientSecret as string,
+              // Prefer static endpoints over discovery so broker sign-in starts immediately.
+              authorizationUrl: grokAuthorizationUrl,
+              tokenUrl: grokTokenUrl,
+              userInfoUrl: grokUserInfoUrl,
+              scopes: ["openid", "profile", "email"],
+              authorizationUrlParams: { idp, prompt: "login" } as Record<string, string>,
+            },
+      ),
     })
   : null;
 
