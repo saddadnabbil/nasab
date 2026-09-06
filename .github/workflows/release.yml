@@ -22,7 +22,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Start app
-        run: npm run dev > /tmp/nasab-dev.log 2>&1 &
+        run: npm run dev -- --force > /tmp/nasab-dev.log 2>&1 &
       - run: npm run test:browser
       - name: Publish GitHub Release
         env:
