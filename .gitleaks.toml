@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Frozen App Builder sandbox OAuth client; production credentials are injected through server environment variables"
+paths = ['''^src/lib/auth/preview\.ts$''']

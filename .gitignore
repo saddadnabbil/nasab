@@ -1,0 +1,30 @@
+# Secrets and local configuration
+.env
+.env.*
+
+# Dependencies and build output
+node_modules/
+.node_modules.lock
+.tanstack/
+.vercel/
+.output/
+dist/
+coverage/
+*.log
+
+# Generated QA output
+screenshots/*
+!screenshots/.gitkeep
+test-results/
+playwright-report/
+
+# App Builder working files
+.grok/status
+.grok/references/
+.grok/skills/
+AGENTS.md
+
+# Editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
