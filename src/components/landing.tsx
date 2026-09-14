@@ -9,6 +9,7 @@ import { sampleAlFalah } from "@/lib/tree/sample";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n/context";
+import { SignedOut } from "@/lib/auth/gates";
 
 type RevealProps = {
   children: ReactNode;
@@ -167,7 +168,9 @@ export function Landing() {
             <p className="landing-lede">{t("landing.save.body")}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg"><Link to="/app">{t("landing.save.ctaOpen")}</Link></Button>
-              <Button asChild size="lg" variant="secondary" className="landing-secondary"><Link to="/login">{t("landing.save.ctaSignIn")}</Link></Button>
+              <SignedOut>
+                <Button asChild size="lg" variant="secondary" className="landing-secondary"><Link to="/login">{t("landing.save.ctaSignIn")}</Link></Button>
+              </SignedOut>
             </div>
           </Reveal>
         </section>

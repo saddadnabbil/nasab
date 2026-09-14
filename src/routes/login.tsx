@@ -1,10 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { SiteNav } from "@/components/site-nav";
 import { useLocale } from "@/lib/i18n/context";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({ component: Login });
@@ -13,11 +14,20 @@ const LOGIN_PROVIDERS = GROK_PROVIDERS.filter((provider) => provider.providerId 
 
 function Login() {
   const { t } = useLocale();
+  const { user, isPending } = useCurrentUserState();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Already signed in — don't show the sign-in form (`login.tsx` isn't
+  // route-guarded; a signed-in visitor can still navigate here directly).
+  // Wait out `isPending` first: bouncing on `user: null` alone would redirect
+  // a signed-in visitor away on every hard reload, before the session
+  // finishes resolving.
+  if (isPending) return null;
+  if (user) return <Navigate to="/app" />;
 
   async function onProviderSignIn(providerId: string) {
     if (busy) return;
